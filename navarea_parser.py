@@ -40,7 +40,6 @@ def parse_coordinates(raw_text):
         if len(points) == 1:
             spatial = {"type": "Point", "coordinates": points[0]}
         elif len(points) > 1:
-            # Assuming LineString for multiple points as a default fallback
             spatial = {"type": "LineString", "coordinates": points}
             
     return parsed_coords, primary_lat, primary_lon, spatial
@@ -59,14 +58,6 @@ def classify_hazard(raw_text):
         return "offshore"
     return "general"
 
-def extract_charts(raw_text):
-    # Regex for CHART GB 4102 or INT 102
-    charts = []
-    matches = re.findall(r'(CHART\s+[A-Z]+\s+\d+|INT\s+\d+)', raw_text, re.IGNORECASE)
-    for m in matches:
-        charts.append(m.upper())
-    return charts
-
 def parse_warning(raw_block, reference_header):
     warning_id = reference_header.split("NAVAREA I ")[-1].strip()
     
@@ -75,17 +66,11 @@ def parse_warning(raw_block, reference_header):
     
     coords_text, lat, lon, spatial = parse_coordinates(raw_block)
     
-    cancel_pattern = r'(CANCEL NAVAREA I \d+/\d+\.?)'
-    cancellation_match = re.search(cancel_pattern, raw_block)
-    cancellation_text = cancellation_match.group(1) if cancellation_match else None
-    
     date_pattern = r'(\d{6}\sUTC\s[A-Z]{3}\s\d{4})'
     date_match = re.search(date_pattern, title)
     issued_text = date_match.group(1) if date_match else None
 
     hazard = classify_hazard(raw_block)
-    charts = extract_charts(raw_block)
-    
     checksum = hashlib.sha256(raw_block.encode('utf-8')).hexdigest()
 
     raw_message = {
@@ -100,22 +85,17 @@ def parse_warning(raw_block, reference_header):
     nav_warning = {
         "warning_id": warning_id,
         "source_id": "ukho-navarea-1",
-        "publisher_id": "ukho",
         "navarea": "I",
-        "original_language": "en",
         "title": title,
         "issued_text": issued_text,
-        "coordinates": json.dumps(coords_text) if coords_text else None, # Store as stringified JSON array or plain string
+        "coordinates": ", ".join(coords_text) if coords_text else None,
         "latitude": lat,
         "longitude": lon,
         "spatial": spatial,
-        "charts": charts,
         "category": hazard,
         "status": "active",
         "is_cancelled": False,
-        "cancellation_text": cancellation_text,
         "raw_text": raw_block,
-        "checksum_sha256": checksum,
         "extraction_method": "deterministic"
     }
     
