@@ -94,7 +94,6 @@ def parse_warning(raw_block, reference_header):
         "spatial": spatial,
         "category": hazard,
         "status": "active",
-        "is_cancelled": False,
         "raw_text": raw_block
     }
     
