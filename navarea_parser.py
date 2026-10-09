@@ -95,8 +95,7 @@ def parse_warning(raw_block, reference_header):
         "category": hazard,
         "status": "active",
         "is_cancelled": False,
-        "raw_text": raw_block,
-        "extraction_method": "deterministic"
+        "raw_text": raw_block
     }
     
     return raw_message, nav_warning
