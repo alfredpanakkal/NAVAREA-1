@@ -110,7 +110,7 @@ def parse_warning(raw_block, reference_header):
         "longitude": lon,
         "spatial": spatial,
         "charts": charts,
-        "hazard_category": hazard,
+        "category": hazard,
         "status": "active",
         "is_cancelled": False,
         "cancellation_text": cancellation_text,
