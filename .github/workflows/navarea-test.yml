@@ -1,12 +1,15 @@
-name: NAVAREA Scraper Test
+name: NAVAREA I Ingestion Pipeline
 
 on:
+  schedule:
+    - cron: '0 */6 * * *' # Automatically runs every 6 hours
   push:
     branches:
       - main
     paths:
       - 'navarea_scraper.py'
       - 'navarea_parser.py'
+      - 'supabase_sync.py'
       - '.github/workflows/navarea-test.yml'
   pull_request:
     branches:

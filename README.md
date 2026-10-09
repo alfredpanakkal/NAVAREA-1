@@ -1,65 +1,116 @@
 # NAVAREA I: Deterministic Scraper & Parser Pipeline
 
-This repository hosts a Python-based autonomous data pipeline designed to ingest, deterministically parse, and synchronize "NAVAREA I" radio navigational warnings from the United Kingdom Hydrographic Office (UKHO) directly into the **Helm.Warning** maritime database architecture.
+[![NAVAREA Scraper Pipeline](https://github.com/alfredpanakkal/NAVAREA-1/actions/workflows/navarea-test.yml/badge.svg)](https://github.com/alfredpanakkal/NAVAREA-1/actions/workflows/navarea-test.yml)
+[![Production Portal](https://img.shields.io/badge/Production%20Portal-Helm.Warning%20Data%20Bank-0070f3?style=flat&logo=vercel)](https://helmwarning.vercel.app/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Database](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-3ECF8E?logo=supabase)](https://supabase.com)
 
-It utilizes the highly adaptive **[Scrapling](https://github.com/D4Vinci/Scrapling)** framework for robust anti-bot bypass and element extraction.
+> **Official Ingestion Pipeline for [Helm.Warning — NAVAREA Data Bank](https://helmwarning.vercel.app/)**
 
-## Architectural Alignment
+This repository hosts a Python-based autonomous data pipeline designed to ingest, deterministically parse, normalize, and synchronize active **NAVAREA I** radio navigational warnings from the United Kingdom Hydrographic Office (UKHO) directly into the **Helm.Warning** maritime database architecture.
 
-This pipeline is fully compliant with the **Helm.Warning 4-Stage Architecture**, successfully implementing the required 6 Parameter Domains (Identity, Temporal, Spatial, Hazard, Evidence, and Governance).
+It utilizes the adaptive **[Scrapling](https://github.com/D4Vinci/Scrapling)** framework for robust anti-bot bypass, stealth session handling, and DOM extraction.
+
+---
+
+## 🌐 Production Platform
+- **Live Data Bank & Map Portal:** [https://helmwarning.vercel.app/](https://helmwarning.vercel.app/)
+- **Authority / Source:** United Kingdom Hydrographic Office (UKHO) / Admiralty MSI
+- **Coverage Zone:** NAVAREA I (North Sea, English Channel, NE Atlantic)
+
+---
+
+## 🏗️ Architectural Alignment
+
+This pipeline is fully compliant with the **Helm.Warning 4-Stage Architecture**, adhering to the required 6 Parameter Domains (Identity, Temporal, Spatial, Hazard, Evidence, and Governance).
+
+```
+[ Authoritative Hydrographic Feeds: UKHO Admiralty MSI ]
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│             STAGE 1 & 2: SCRAPE & VERIFICATION              │
+│  navarea_scraper.py (Session Token + In-Force Selection)    │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│          STAGE 2: MULTI-PASS DETERMINISTIC PARSER           │
+│  navarea_parser.py (WGS84 Coordinates, GeoJSON, Semantics)  │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│     STAGE 3 & 4: DUAL-ROUTE SUPABASE SYNCHRONIZATION        │
+│  supabase_sync.py                                           │
+│  ├── public.raw_messages (Immutable Audit Log)              │
+│  └── public.nav_warnings (Master In-Force Spatial Records)  │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ### Pipeline Components
 
 1. **The Evidence Locker (`navarea_scraper.py`)**
    - Fetches the active warning repository (`https://msi.admiralty.co.uk/RadioNavigationalWarnings`).
-   - Navigates the DOM to extract required session verification tokens.
-   - Emulates user behavior to submit the "Show selection" form specifically for NAVAREA I warnings.
-   - Outputs an immutable `navarea_1_warnings.txt` payload.
+   - Resolves CSRF verification tokens dynamically.
+   - Submits the form selection specifically for all in-force NAVAREA I warnings.
+   - Emits an untouched, verbatim `navarea_1_warnings.txt` payload.
 
 2. **The Multi-Pass Deterministic Parser (`navarea_parser.py`)**
-   - **Coordinate Normalization:** Extracts text-based DMS coordinates (e.g., `52-07.7N 003-56.4E`) and converts them into rigorous WGS 84 Decimal Degrees (`latitude`, `longitude`).
-   - **GeoJSON Generation:** Automatically computes `spatial` column properties (Point, LineString).
-   - **Semantic Hazard Tagging:** Classifies warnings via keyword analysis (`aton`, `military`, `subsea`, `drifting`, `offshore`).
-   - **Cryptographic Traceability:** Generates `checksum_sha256` hashes for every raw message block.
-   - Outputs a segregated, database-ready `parsed_warnings.json` file.
+   - **Coordinate Normalization:** Extracts text-based DMS / DM coordinates (e.g., `52-07.7N 003-56.4E`) and converts them into decimal degrees (`latitude`, `longitude`).
+   - **GeoJSON Generation:** Automatically creates WGS 84 `spatial` features (Point, LineString).
+   - **Hazard Semantic Classification:** Tags warnings using maritime keywords (`aton`, `military`, `subsea`, `drifting`, `offshore`).
+   - **Affected Charts:** Captures referenced Admiralty/INT charts (e.g., `INT 102`, `CHART GB 4102`).
+   - **Cryptographic Traceability:** Generates `checksum_sha256` hashes for every bulletin block.
+   - Emits structured `parsed_warnings.json`.
 
 3. **Dual-Route Database Router (`supabase_sync.py`)**
-   - Ingests the normalized JSON payload.
-   - Synchronizes directly with the production Supabase project via `supabase-py`.
-   - Safely batches and `upserts` records into the official `public.raw_messages` (Stage 3) and `public.nav_warnings` (Stage 4) master tables.
+   - Consumes the normalized JSON payload.
+   - Interacts with Supabase using `supabase-py`.
+   - Idempotently upserts records into `public.raw_messages` and `public.nav_warnings` keyed on `(warning_id, source_id)`.
 
-## Usage & Execution
+---
 
-### 1. Local Environment Setup
-Since this repository includes the Scrapling source code directly, install the local framework alongside the required network and database libraries:
+## 🚀 Usage & Execution
+
+### 1. Local Setup
+Clone the repository and install the dependencies:
 ```bash
+git clone https://github.com/alfredpanakkal/NAVAREA-1.git
+cd NAVAREA-1
+
 pip install -e .[all]
 pip install requests supabase
 ```
 
-### 2. Manual Execution
+### 2. Manual Pipeline Run
 Run the pipeline stages sequentially:
 ```bash
-# 1. Fetch the raw payload
+# Step 1: Scrape verbatim warnings
 python navarea_scraper.py
 
-# 2. Extract and normalize GeoJSON & Semantics
+# Step 2: Parse, normalize coordinates & generate GeoJSON
 python navarea_parser.py
 
-# 3. Synchronize with Supabase
-# Requires SUPABASE_URL and SUPABASE_KEY environment variables
+# Step 3: Upsert into Supabase (requires environment variables)
+export SUPABASE_URL="https://your-project.supabase.co"
+export SUPABASE_KEY="your-anon-or-service-key"
 python supabase_sync.py
 ```
 
 ### 3. Automated Cloud Pipeline (GitHub Actions)
-This repository includes a pre-configured CI/CD workflow (`.github/workflows/navarea-test.yml`). 
-Upon every push to the main branch, a GitHub Action automatically provisions an Ubuntu runner, installs dependencies, executes the scraper, verifies the deterministic parser's JSON structure, and initiates a secure sync to the Supabase database (provided repository secrets are set).
+Continuous integration and recurring synchronization are handled via `.github/workflows/navarea-test.yml`:
+- **Triggers:** Push to `main`, scheduled cron intervals (every 6 hours), or manual trigger (`workflow_dispatch`).
+- **Secrets Required:**
+  - `SUPABASE_URL`
+  - `SUPABASE_KEY`
+- Runs in a clean Ubuntu runner, verifies scraping and parsing integrity, and publishes live updates to [Helm.Warning](https://helmwarning.vercel.app/).
 
 ---
 
-## Acknowledgments & Credits
+## 📜 Acknowledgments & Credits
 
-**Scrapling Library**  
+**Scrapling Framework**  
 This repository originated as a fork of [Scrapling](https://github.com/D4Vinci/Scrapling), an adaptive web scraping framework. All credit for the underlying scraping framework, fetcher engines, and DOM selectors goes to the original creator **Karim Shoair (D4Vinci)** and the contributors to the Scrapling project.
 
 * [Scrapling GitHub Repository](https://github.com/D4Vinci/Scrapling)
