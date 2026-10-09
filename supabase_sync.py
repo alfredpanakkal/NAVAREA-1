@@ -31,13 +31,13 @@ def sync_to_supabase():
         print("No nav_warnings found in parsed_warnings.json to sync.")
         return
 
-    print(f"Attempting to upsert {len(warnings_to_insert)} warnings to Supabase table 'navarea_one_active'...")
+    print(f"Attempting to upsert {len(warnings_to_insert)} warnings to Supabase table 'NAVAREA 1 UK'...")
     
     success_count = 0
     for warning in warnings_to_insert:
         try:
             # We use 'upsert' to avoid duplicate errors on subsequent runs
-            response = supabase.table("navarea_one_active").upsert({
+            response = supabase.table("NAVAREA 1 UK").upsert({
                 "warning_id": warning["warning_id"],
                 "title": warning["title"],
                 "issued_text": warning["issued_text"],
