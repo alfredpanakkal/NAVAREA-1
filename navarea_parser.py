@@ -91,7 +91,6 @@ def parse_warning(raw_block, reference_header):
         "coordinates": ", ".join(coords_text) if coords_text else None,
         "latitude": lat,
         "longitude": lon,
-        "spatial": spatial,
         "category": hazard,
         "status": "active",
         "raw_text": raw_block
