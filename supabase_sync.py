@@ -25,33 +25,29 @@ def sync_to_supabase():
         print("Error: parsed_warnings.json not found.")
         sys.exit(1)
 
+    messages_to_insert = data.get("raw_messages", [])
     warnings_to_insert = data.get("nav_warnings", [])
     
     if not warnings_to_insert:
-        print("No nav_warnings found in parsed_warnings.json to sync.")
+        print("No warnings found in parsed_warnings.json to sync.")
         return
 
-    print(f"Attempting to upsert {len(warnings_to_insert)} warnings to Supabase table 'NAVAREA 1 UK'...")
-    
-    success_count = 0
-    for warning in warnings_to_insert:
-        try:
-            # We use 'upsert' to avoid duplicate errors on subsequent runs
-            response = supabase.table("NAVAREA 1 UK").upsert({
-                "warning_id": warning["warning_id"],
-                "title": warning["title"],
-                "issued_text": warning["issued_text"],
-                "coordinates": warning["coordinates"],
-                "cancellation_text": warning["cancellation_text"],
-                "raw_text": warning["raw_text"]
-            }, on_conflict="warning_id").execute()
+    print(f"Attempting to upsert {len(messages_to_insert)} records to 'raw_messages'...")
+    try:
+        supabase.table("raw_messages").upsert(messages_to_insert, on_conflict="warning_id,source_id").execute()
+        print("Successfully synced to raw_messages.")
+    except Exception as e:
+        print(f"Failed to sync raw_messages: {e}")
+
+    print(f"Attempting to upsert {len(warnings_to_insert)} records to 'nav_warnings'...")
+    try:
+        # Since 'spatial' is a dict (GeoJSON) and 'charts' is a list, supabase-py handles JSONB natively
+        supabase.table("nav_warnings").upsert(warnings_to_insert, on_conflict="warning_id,source_id").execute()
+        print("Successfully synced to nav_warnings.")
+    except Exception as e:
+        print(f"Failed to sync nav_warnings: {e}")
             
-            success_count += 1
-            print(f"Successfully synced warning: {warning['warning_id']}")
-        except Exception as e:
-            print(f"Failed to sync warning {warning['warning_id']}: {e}")
-            
-    print(f"Finished sync operation. Successfully upserted {success_count}/{len(warnings_to_insert)} warnings.")
+    print(f"Finished sync operation.")
 
 if __name__ == "__main__":
     sync_to_supabase()
